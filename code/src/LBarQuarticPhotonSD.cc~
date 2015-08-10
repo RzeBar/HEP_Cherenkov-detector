@@ -1,0 +1,49 @@
+#include "LBarQuarticPhotonSD.hh"
+#include "G4HCofThisEvent.hh"
+#include "G4SDManager.hh"
+#include "G4Step.hh"
+
+LBarQuarticPhotonSD::LBarQuarticPhotonSD(const G4String& name)
+  :G4VSensitiveDetector(name)
+{
+  collectionName.insert("PhotonCollection");
+  fPhotonCollectionID = -1;
+}
+
+LBarQuarticPhotonSD::~LBarQuarticPhotonSD() {}
+
+void LBarQuarticPhotonSD::Initialize(G4HCofThisEvent* hitsCollectionOfThisEvent)
+{
+ // Create a new collection
+ fPhotonCollection = new G4THitsCollection<LBarQuarticPhotonHit>(SensitiveDetectorName, collectionName[0]);
+ if( fPhotonCollectionID < 0) 
+     fPhotonCollectionID = G4SDManager::GetSDMpointer()->GetCollectionID(fPhotonCollection);
+ // Add collection to the events
+ hitsCollectionOfThisEvent->AddHitsCollection(fPhotonCollectionID, fPhotonCollection); 
+}
+
+G4bool LBarQuarticPhotonSD::ProcessHits(G4Step* aStep, G4TouchableHistory*)
+{
+ // Create a new hit
+ LBarQuarticPhotonHit* aHit = new LBarQuarticPhotonHit();
+
+ // Get energy and position
+ G4double energy = aStep->GetTrack()->GetTotalEnergy();
+ G4ThreeVector position = aStep->GetTrack()->GetPosition();
+ G4double globaltime = aStep->GetTrack()->GetGlobalTime();
+ G4double localtime = aStep->GetTrack()->GetLocalTime();
+ G4int copyid = aStep->GetTrack()->GetVolume()->GetGetCopyNo();
+
+ // Set energy and position
+ aHit->SetEnergy(energy);
+ aHit->SetPosition(position);
+ aHit->SetGlobalTime(globaltime);
+ aHit->SetLocalTime(localtime);
+ aHit->SetCopyID(copyid);
+
+ // Insert hit into the collection
+ fPhotonCollection->insert(aHit); 
+ return true;
+}
+
+void LBarQuarticPhotonSD::EndOfEvent(G4HCofThisEvent*) {}

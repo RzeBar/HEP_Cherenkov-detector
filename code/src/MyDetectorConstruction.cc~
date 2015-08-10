@@ -1,0 +1,224 @@
+#include "MyDetectorConstruction.hh"
+#include "G4Box.hh"
+#include "G4Colour.hh"
+#include "G4LogicalVolume.hh"
+#include "G4Material.hh"
+#include "G4PVParameterised.hh"
+#include "G4PVPlacement.hh"
+#include "G4RunManager.hh"
+#include "G4Tubs.hh"
+#include "G4Sphere.hh"
+#include "G4VisAttributes.hh"
+#include "G4NistManager.hh"
+#include "MyScoreParameterisation.hh"
+
+MyDetectorConstruction::MyDetectorConstruction()
+  :fpWorldLogical(0)
+  ,fpWorldPhysical(0)
+{}
+
+MyDetectorConstruction::~MyDetectorConstruction() {}
+
+G4VPhysicalVolume* MyDetectorConstruction::Construct()
+{
+  // Material Definition
+  DefineMaterials();  
+
+  // Geometry Definition
+  SetupGeometry();   
+
+  // Return world volume
+  return fpWorldPhysical;  
+}
+
+void MyDetectorConstruction::DefineMaterials()
+{
+  G4String symbol;             
+  G4double a, z, density;     
+  G4int ncomponents;
+  G4double fractionmass;
+  
+  // Define simple materials
+  // Define beryllium, silicon and iron 
+  new G4Material("Beryllium", z=4., a=9.012182*g/mole, density=1.8480*g/cm3);
+  new G4Material("Iron", z=26., a=55.845*g/mole, density=7.87*g/cm3);
+  new G4Material("Silicon", z=14., a=28.0855*g/mole, density=2.33*g/cm3);
+  new G4Material("Titanium",  z=22., a=47.90*g/mole,    density=4.540*g/cm3);
+    
+  // Define elements
+//  G4Element* N = new G4Element("Nitrogen", symbol="N", z=7., a=14.01*g/mole);
+//  G4Element* O = new G4Element("Oxygen",   symbol="O", z=8., a=16.00*g/mole);
+  
+  // Define air
+/*  G4Material* air = new G4Material("Air", density= 1.290*mg/cm3, ncomponents=2);
+  air->AddElement(N, fractionmass=0.7);
+  air->AddElement(O, fractionmass=0.3);
+*/
+G4NistManager* man = G4NistManager::Instance();
+  man->SetVerbose(1);
+ G4Material* air  = man->FindOrBuildMaterial("G4_AIR");
+
+  // Define vacuum
+  G4Material* vacuum = new G4Material("Vacuum", density= 1.e-5*g/cm3, 
+				      ncomponents=1, kStateGas, STP_Temperature, 
+				      2.e-2*bar);
+  
+  vacuum->AddMaterial(air, fractionmass=1.);
+  
+  // Dump material information
+  G4cout << *(G4Material::GetMaterialTable()) << G4endl;
+}
+
+void MyDetectorConstruction::SetupGeometry()
+{
+  // NIST definition of air
+  G4Material* air = G4Material::GetMaterial("G4_AIR");
+
+  
+  // World volume
+  G4Box* worldSolid = new G4Box("World_Solid",           // Name
+				2.0*m, 2.0*m, 2.0*m);    // Half lengths
+  
+  fpWorldLogical = new G4LogicalVolume(worldSolid,	 // Solid
+				       air,	         // Material
+				       "World_Logical"); // Name
+  
+  fpWorldPhysical = new G4PVPlacement(0,	         // Rotation matrix pointer
+				      G4ThreeVector(),   // Translation vector
+				      fpWorldLogical,	 // Logical volume
+				      "World_Physical",	 // Name
+				      0,		 // Mother volume
+				      false,		 // Unused boolean parameter
+				      0);		 // Copy number
+  ////////////////////////////////////////////////////////////////////////
+  // Beam Window (BW)
+  G4Material* titanium = G4Material::GetMaterial("Titanium");
+  
+  G4VSolid* beamWindowSolid = new G4Tubs("BeamWindow_Solid", 0.*cm, 2.0*cm,
+					 0.0065*cm, 0.*deg, 360.*deg);
+  
+  G4LogicalVolume* beamWindowLogical = 
+    new G4LogicalVolume(beamWindowSolid, titanium, "BeamWindow_Logical");
+  
+  new G4PVPlacement(0, G4ThreeVector(0.,0.,-(3.0*cm+ 0.0065*cm)),
+		    beamWindowLogical, "BeamWindow_Physical", 
+		    fpWorldLogical, false, 0);
+  
+  ////////////////////////////////////////////////////////////////////////
+  // Beam Pipe 
+  G4Material* vacuum = G4Material::GetMaterial("Vacuum");
+  
+  G4VSolid* beamPipeSolid = new G4Tubs("BeamPipe_Solid", 0.*cm, 5.0*cm, 5.0*cm, 
+				       0.*deg, 360.*deg);
+  
+  G4LogicalVolume* beamPipeLogical = 
+    new G4LogicalVolume(beamPipeSolid, vacuum, "BeamPipe_Logical");
+  
+  new G4PVPlacement(0, G4ThreeVector(0.,0., -(3.013*cm+5.0*cm)),
+		    beamPipeLogical, "BeamPipe_Physical",
+		    fpWorldLogical, false, 0);
+
+  ////////////////////////////////////////////////////////////////////////
+//Tarcza berylowa
+  G4Material* beryllium= G4Material::GetMaterial("Beryllium");
+
+G4VSolid* tarcza_berylowaSolid = new G4Tubs("Tarcza_Berylowa", 0.*cm, 3.63*cm, 3.155*cm, 
+				       0.*deg, 360.*deg);
+
+  G4LogicalVolume* tarcza_berylowaLogical = 
+    new G4LogicalVolume(tarcza_berylowaSolid, beryllium, "Tarcza_Berylowa_Logical");
+
+  new G4PVPlacement(0, G4ThreeVector(0.,0.,3.155*cm),
+		    tarcza_berylowaLogical, "Tarcza_Berylowa_Physical",
+		    fpWorldLogical, false, 0);
+  
+  ////////////////////////////////////////////////////////////////////////
+//DetKrzem
+G4Material* silicon= G4Material::GetMaterial("Silicon");
+
+G4VSolid* DetKrzemSolid = new G4Tubs("DetKrzem", 0.*cm, 2.*cm, 0.005*cm, 
+				       0.*deg, 360.*deg);
+
+  G4LogicalVolume* DetKrzemLogical = 
+    new G4LogicalVolume(DetKrzemSolid, silicon, "DetKrzemLogical");
+
+  new G4PVPlacement(0, G4ThreeVector(0.,0., -2.*cm),
+		    DetKrzemLogical, "DetKrzemPhysical",
+		    fpWorldLogical, false, 0);
+  
+
+  ////////////////////////////////////////////////////////////////////////
+
+
+G4Material* iron= G4Material::GetMaterial("Iron");
+
+G4VSolid* IronWindowSolid = new G4Tubs("IronWindow", 0.*cm, 2.*cm, 0.00255*cm, 
+				       0.*deg, 360.*deg);
+
+  G4LogicalVolume* IronWindowLogical = 
+    new G4LogicalVolume(IronWindowSolid, iron, "IronWindowLogical");
+
+  new G4PVPlacement(0, G4ThreeVector(0.,0., -1.*cm),
+		    IronWindowLogical, "IronWindowPhysical",
+		    fpWorldLogical, false, 0);
+
+  ////////////////////////////////////////////////////////////////////////
+
+G4VSolid* SphereSolid = new G4Sphere("SphereSolid", 40.*cm, 40.01*cm, 0.*deg, 360.*deg,  0.*deg, 90.*deg);
+
+  G4LogicalVolume* SphereLogical = new G4LogicalVolume(SphereSolid, air, "SphereLogical");
+
+  new G4PVPlacement(0, G4ThreeVector(0.,0.,0.),
+		    SphereLogical, "SpherePhysical",
+		    fpWorldLogical, false, 0);
+G4int nRings = 15;
+G4double innerRadius = 40.*cm;
+G4double outerRadius = 40.01*cm;
+MyScoreParameterisation *param = new MyScoreParameterisation(innerRadius,outerRadius,nRings); 
+
+G4VSolid* score = new G4Sphere("Score", 40.*cm, 40.01*cm, 0.*deg, 360.*deg,  0.*deg, 90.*deg);
+G4LogicalVolume* scoreLogical = new G4LogicalVolume(score, air, "ScoreLogical");
+
+new G4PVParameterised("ScoreParam",scoreLogical,SphereLogical,kZAxis,nRings,param,false);
+
+
+
+
+  ////////////////////////////////////////////////////////////////////////
+  // Visualisation attributes
+  
+  // Invisible world volume.
+  fpWorldLogical->SetVisAttributes(G4VisAttributes::Invisible);
+
+  // Beam Window - brown
+  G4VisAttributes* beamWindowAttributes = new G4VisAttributes(G4Colour(0.5,0.0,0.0,1.0));
+  beamWindowAttributes->SetForceSolid(true);
+  beamWindowLogical->SetVisAttributes(beamWindowAttributes);
+  //
+  // Beam Pipe Vacuum - yellow
+  G4VisAttributes* beamPipeAttributes = new G4VisAttributes(G4Colour::Yellow());
+  beamPipeAttributes->SetForceSolid(true);
+  beamPipeLogical->SetVisAttributes(beamPipeAttributes);
+  // 
+  G4VisAttributes* tarcza_berylowaAttributes = new G4VisAttributes(G4Colour::Cyan());
+  tarcza_berylowaAttributes->SetForceSolid(true);
+  tarcza_berylowaLogical->SetVisAttributes(tarcza_berylowaAttributes);
+
+  G4VisAttributes* DetKrzemAttributes = new G4VisAttributes(G4Colour::Gray());
+  DetKrzemAttributes->SetForceSolid(true);
+  DetKrzemLogical->SetVisAttributes(DetKrzemAttributes);
+
+
+  G4VisAttributes* IronWindowAttributes = new G4VisAttributes(G4Colour::Magenta());
+  IronWindowAttributes->SetForceSolid(true);
+  IronWindowLogical->SetVisAttributes(IronWindowAttributes);
+
+ G4VisAttributes* SphereAttributes = new G4VisAttributes();
+ SphereAttributes->SetVisibility(0);;
+ SphereLogical->SetVisAttributes(SphereAttributes);
+
+ G4VisAttributes* ScoreAttributes = new G4VisAttributes();
+ ScoreAttributes->SetColor(G4Colour(0.0,1.0,0.0,0.5));;
+ scoreLogical->SetVisAttributes(ScoreAttributes);
+
+}

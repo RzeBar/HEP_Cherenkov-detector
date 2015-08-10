@@ -1,0 +1,28 @@
+#ifndef MYSCOREPARAMETERIKSATION_HH
+#define MYSCOREPARAMETERIKSATION_HH
+#include "G4VPVParameterisation.hh"
+
+class MyScoreParameterisation :  public G4VPVParameterisation
+{
+	public:
+	MyScoreParameterisation(const G4double,const G4double,const G4int);
+	virtual ~MyScoreParameterisation();
+	virtual void ComputeTransformation(const G4int,G4VPhysicalVolume * ) const {};
+	virtual void ComputeDimensions(G4Sphere &, const G4int, const G4VPhysicalVolume *) const ;
+
+
+	private:
+	G4double finnerRadius;
+	G4double fouterRadius;
+	G4int fnRings;
+
+
+
+
+
+
+};
+	
+
+
+#endif
